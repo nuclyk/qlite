@@ -10,17 +10,20 @@ const (
 )
 
 type Query struct {
-	queryType  string
-	columns    []string
-	table      string
-	values     []string
-	conditions []string
+	queryType string
+	columns   []string
+	table     string
+	values    []any
+	where     []string
+	groupBy   []string
+	having    []string
 }
 
 func NewQuery() *Query {
 	return &Query{
 		columns: make([]string, 0),
-		values:  make([]string, 0),
+		where:   make([]string, 0),
+		groupBy: make([]string, 0),
 	}
 }
 
@@ -40,30 +43,59 @@ func (q *Query) From(table string) *Query {
 }
 
 func (q *Query) Where(cond, value string) *Query {
-	if len(q.conditions) != 0 {
-		q.conditions = append(q.conditions, "AND")
-		q.conditions = append(q.conditions, cond)
+	if len(q.where) != 0 {
+		q.where = append(q.where, "AND")
+		q.where = append(q.where, cond)
 	} else {
-		q.conditions = append(q.conditions, "WHERE")
-		q.conditions = append(q.conditions, cond)
+		q.where = append(q.where, "WHERE")
+		q.where = append(q.where, cond)
 	}
 	q.values = append(q.values, value)
 	return q
 }
 
 func (q *Query) Or(cond, value string) *Query {
-	if len(q.conditions) != 0 {
-		q.conditions = append(q.conditions, "OR")
-		q.conditions = append(q.conditions, cond)
+	if len(q.where) != 0 {
+		q.where = append(q.where, "OR")
+		q.where = append(q.where, cond)
 	} else {
-		q.conditions = append(q.conditions, "WHERE")
-		q.conditions = append(q.conditions, cond)
+		q.where = append(q.where, "WHERE")
+		q.where = append(q.where, cond)
 	}
 	q.values = append(q.values, value)
 	return q
 }
 
-func (q *Query) Build() string {
+func (q *Query) GroupBy(columns ...string) *Query {
+	q.groupBy = append(q.groupBy, columns...)
+	return q
+}
+
+func (q *Query) Having(condition, value string) *Query {
+	if len(q.having) != 0 {
+		q.having = append(q.having, "AND")
+		q.having = append(q.having, condition)
+	} else {
+		q.having = append(q.having, "HAVING")
+		q.having = append(q.having, condition)
+	}
+	q.values = append(q.values, value)
+	return q
+}
+
+func (q *Query) OrHaving(cond, value string) *Query {
+	if len(q.having) != 0 {
+		q.having = append(q.having, "OR")
+		q.having = append(q.having, cond)
+	} else {
+		q.having = append(q.having, "HAVING")
+		q.having = append(q.having, cond)
+	}
+	q.values = append(q.values, value)
+	return q
+}
+
+func (q *Query) String() string {
 	var sql []string
 	switch q.queryType {
 	case SELECT:
@@ -77,8 +109,17 @@ func (q *Query) Build() string {
 		sql = append(sql, "")
 	}
 
-	for _, cond := range q.conditions {
+	for _, cond := range q.where {
 		sql = append(sql, cond)
 	}
+
+	if len(q.groupBy) != 0 {
+		sql = append(sql, "GROUP BY", strings.Join(q.groupBy, ", "))
+	}
+
+	for _, cond := range q.having {
+		sql = append(sql, cond)
+	}
+
 	return strings.Join(sql, " ")
 }
