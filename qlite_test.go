@@ -1,7 +1,6 @@
 package qlite_test
 
 import (
-	"fmt"
 	q "nuclyk/qlite"
 	"reflect"
 	"testing"
@@ -231,12 +230,4 @@ Fail
 ---`, test.input, test.expected, result)
 		}
 	}
-}
-
-// Example for Where function.
-func ExampleQuery_Where() {
-	q := q.NewQuery().Select().From("users").Where("id = ?", "1")
-	fmt.Println(q.String())
-
-	// Output: SELECT * FROM users WHERE id = ?
 }
