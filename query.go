@@ -1,23 +1,31 @@
-package main
+package qlite
 
 import (
+	"strconv"
 	"strings"
 )
 
 const (
-	SELECT = "SELECT"
-	INSERT = "INSERT"
+	SELECT           = "SELECT"
+	INSERT           = "INSERT"
+	ASC    Direction = "ASC"
+	DESC   Direction = "DESC"
 )
 
 type Query struct {
 	queryType string
+	distinct  bool
 	columns   []string
 	table     string
 	values    []any
 	where     []string
 	groupBy   []string
 	having    []string
+	orderBy   []string
+	limit     *int
 }
+
+type Direction string
 
 func NewQuery() *Query {
 	return &Query{
@@ -37,32 +45,33 @@ func (q *Query) Select(columns ...string) *Query {
 	return q
 }
 
+func (q *Query) Distinct() *Query {
+	q.distinct = true
+	return q
+}
+
 func (q *Query) From(table string) *Query {
 	q.table = table
 	return q
 }
 
-func (q *Query) Where(cond, value string) *Query {
+// Adds WHERE clause
+func (q *Query) Where(condition, value string) *Query {
 	if len(q.where) != 0 {
-		q.where = append(q.where, "AND")
-		q.where = append(q.where, cond)
+		q.where = append(q.where, "AND", condition)
 	} else {
-		q.where = append(q.where, "WHERE")
-		q.where = append(q.where, cond)
+		q.where = append(q.where, "WHERE", condition)
 	}
 	q.values = append(q.values, value)
 	return q
 }
 
-func (q *Query) Or(cond, value string) *Query {
+func (q *Query) OrWhere(cond, value string) *Query {
 	if len(q.where) != 0 {
 		q.where = append(q.where, "OR")
 		q.where = append(q.where, cond)
-	} else {
-		q.where = append(q.where, "WHERE")
-		q.where = append(q.where, cond)
+		q.values = append(q.values, value)
 	}
-	q.values = append(q.values, value)
 	return q
 }
 
@@ -73,25 +82,31 @@ func (q *Query) GroupBy(columns ...string) *Query {
 
 func (q *Query) Having(condition, value string) *Query {
 	if len(q.having) != 0 {
-		q.having = append(q.having, "AND")
-		q.having = append(q.having, condition)
+		q.having = append(q.having, "AND", condition)
 	} else {
-		q.having = append(q.having, "HAVING")
-		q.having = append(q.having, condition)
+		q.having = append(q.having, "HAVING", condition)
 	}
 	q.values = append(q.values, value)
 	return q
 }
 
-func (q *Query) OrHaving(cond, value string) *Query {
+func (q *Query) OrHaving(condition, value string) *Query {
 	if len(q.having) != 0 {
-		q.having = append(q.having, "OR")
-		q.having = append(q.having, cond)
-	} else {
-		q.having = append(q.having, "HAVING")
-		q.having = append(q.having, cond)
+		q.having = append(q.having, "OR", condition)
+		q.values = append(q.values, value)
 	}
-	q.values = append(q.values, value)
+	return q
+}
+
+func (q *Query) OrderBy(column string, dir Direction) *Query {
+	if len(q.orderBy) == 0 {
+		q.orderBy = append(q.orderBy, column, string(dir))
+	}
+	return q
+}
+
+func (q *Query) Limit(limit int) *Query {
+	q.limit = &limit
 	return q
 }
 
@@ -100,6 +115,9 @@ func (q *Query) String() string {
 	switch q.queryType {
 	case SELECT:
 		sql = append(sql, SELECT)
+		if q.distinct {
+			sql = append(sql, "DISTINCT")
+		}
 		sql = append(sql, strings.Join(q.columns, ", "))
 		if q.table != "" {
 			sql = append(sql, "FROM")
@@ -121,5 +139,18 @@ func (q *Query) String() string {
 		sql = append(sql, cond)
 	}
 
+	if len(q.orderBy) != 0 {
+		sql = append(sql, "ORDER BY", q.orderBy[0], q.orderBy[1])
+	}
+
+	if q.limit != nil {
+		sql = append(sql, "LIMIT", strconv.Itoa(*q.limit))
+
+	}
+
 	return strings.Join(sql, " ")
+}
+
+func (q *Query) GetValues() []any {
+	return q.values
 }
