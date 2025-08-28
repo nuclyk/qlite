@@ -1,9 +1,10 @@
 package qlite_test
 
 import (
-	q "nuclyk/qlite"
 	"reflect"
 	"testing"
+
+	q "github.com/nuclyk/qlite"
 )
 
 func TestSelect(t *testing.T) {
